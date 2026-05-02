@@ -244,6 +244,12 @@
 
   function exitSplash() {
     if (!$splash) return;
+
+    /* Lift the inline visibility guard so the app shell is ready beneath the splash */
+    const shell = document.getElementById('app-shell');
+    if (shell) shell.style.visibility = '';
+    document.querySelectorAll('.bg-orb').forEach(el => el.style.visibility = '');
+
     $splash.classList.add('splash-out');
     $splash.addEventListener('animationend', () => {
       $splash.style.display = 'none';
