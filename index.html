@@ -21,28 +21,16 @@
   <link rel="stylesheet" href="style.css" />
 
   <!--
-    CRITICAL INLINE CSS — Paint-blocking guard for PWA standalone mode.
-    External style.css may not be parsed before first paint on installed PWAs,
-    causing the app shell to flash before the splash renders. These minimal
-    inline rules guarantee the correct initial state on every launch.
+    CRITICAL INLINE GUARD — 3 rules only.
+    style.css may not be parsed before first paint in standalone PWA mode.
+    These rules are the bare minimum to prevent the app shell flashing
+    through before the splash renders. All other styles live in style.css.
   -->
   <style>
-    /* Force splash visible immediately, independent of style.css */
-    #avian-splash {
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      background: #0b0f14;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-    /* Hide app shell until avian:ready fires */
-    #app-shell,
-    .bg-orb {
-      visibility: hidden;
-    }
+    #avian-splash { position:fixed; inset:0; z-index:9999; background:#0b0f14;
+                    display:flex; flex-direction:column; align-items:center; justify-content:center; }
+    #app-shell, .bg-orb { visibility:hidden; }
+    body { background:#0b0f14; }
   </style>
 </head>
 <body>

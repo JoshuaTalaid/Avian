@@ -52,6 +52,9 @@ body {
    SPLASH SCREEN
 ════════════════════════════════════════════ */
 
+/* Hide app shell until startup.js lifts this after the splash exits */
+#app-shell, .bg-orb { visibility: hidden; }
+
 .splash {
   position: fixed;
   inset: 0;

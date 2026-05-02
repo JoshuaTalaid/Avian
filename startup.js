@@ -34,7 +34,7 @@
 
   /* Splash steps (id, progress 0-1, label) */
   const STEPS = [
-    { id:'init',   pct:0.05, label:'Initialising application\u2026'       },
+    { id:'init',   pct:0.05, label:'Initializing application\u2026'       },
     { id:'sw',     pct:0.12, label:'Setting up offline support\u2026'      },
     { id:'net',    pct:0.28, label:'Checking internet connection\u2026'    },
     { id:'ver',    pct:0.45, label:'Checking for updates\u2026'            },
@@ -244,12 +244,10 @@
 
   function exitSplash() {
     if (!$splash) return;
-
-    /* Lift the inline visibility guard so the app shell is ready beneath the splash */
+    /* Lift the inline visibility guard so the app shell renders beneath the exit animation */
     const shell = document.getElementById('app-shell');
     if (shell) shell.style.visibility = '';
     document.querySelectorAll('.bg-orb').forEach(el => el.style.visibility = '');
-
     $splash.classList.add('splash-out');
     $splash.addEventListener('animationend', () => {
       $splash.style.display = 'none';
