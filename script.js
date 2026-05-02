@@ -325,23 +325,28 @@ function appInit() {
   }
 }
 
-/* Listen for startup.js signal */
-window.addEventListener('avian:ready', appInit, { once: true });
+/* ── Init guard — prevents appInit() running twice ── */
+let _appInitDone = false;
+function _safeAppInit(source) {
+  if (_appInitDone) return;
+  _appInitDone = true;
+  if (source) console.log('[App] Boot triggered by:', source);
+  appInit();
+}
 
-/* Fallback: if startup.js is missing or errored, boot on window.load */
+/* Primary path: startup.js signals when splash is fully done */
+window.addEventListener('avian:ready', () => _safeAppInit('avian:ready'), { once: true });
+
+/* Fallback: startup.js took too long or errored.
+   SPLASH_MIN in startup.js is 2400 ms, so wait well beyond that.
+   This only fires if avian:ready genuinely never arrives. */
 window.addEventListener('load', () => {
-  // If startup.js already fired avian:ready before this script registered,
-  // the flag will be set — boot immediately. Otherwise wait briefly.
-  if (window.__avianReady) {
-    appInit();
-  } else {
-    setTimeout(() => {
-      if (!isModelReady && !model) {
-        console.warn('[App] avian:ready never fired — booting directly');
-        appInit();
-      }
-    }, 500);
-  }
+  setTimeout(() => {
+    if (!_appInitDone) {
+      console.warn('[App] avian:ready never fired — booting directly');
+      _safeAppInit('load-fallback');
+    }
+  }, 5000); // longer than SPLASH_MIN (2400ms) + startup overhead
 });
 
 
