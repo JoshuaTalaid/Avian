@@ -330,12 +330,18 @@ window.addEventListener('avian:ready', appInit, { once: true });
 
 /* Fallback: if startup.js is missing or errored, boot on window.load */
 window.addEventListener('load', () => {
-  setTimeout(() => {
-    if (!isModelReady && !model) {
-      console.warn('[App] avian:ready never fired — booting directly');
-      appInit();
-    }
-  }, 500);
+  // If startup.js already fired avian:ready before this script registered,
+  // the flag will be set — boot immediately. Otherwise wait briefly.
+  if (window.__avianReady) {
+    appInit();
+  } else {
+    setTimeout(() => {
+      if (!isModelReady && !model) {
+        console.warn('[App] avian:ready never fired — booting directly');
+        appInit();
+      }
+    }, 500);
+  }
 });
 
 

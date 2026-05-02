@@ -281,6 +281,7 @@
   function forceExitSplash() {
     revealAppShell();
     if ($splash) $splash.style.display = 'none';
+    window.__avianReady = true;                          
     window.dispatchEvent(new CustomEvent('avian:ready'));
   }
 
