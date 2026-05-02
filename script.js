@@ -356,7 +356,7 @@ function appInit() {
      AND acts as a last-resort fallback if startup.js never completes.
      Poll every 200 ms; give up and force-boot after 30 s (covers slow downloads). */
   const POLL_INTERVAL = 200;
-  const POLL_LIMIT    = 40000;
+  const POLL_LIMIT    = 30000;
   let   elapsed       = 0;
 
   const poll = setInterval(() => {

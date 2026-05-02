@@ -12,7 +12,7 @@
   const BASE         = '/Avian';
   const VERSION_URL  = 'https://raw.githubusercontent.com/joshuatalaid/Avian/main/version.json';
   const VERSION_KEY  = 'avian_version';
-  const CACHE_NAME   = 'avian-cache-v2.0.0';
+  const CACHE_NAME   = 'avian-cache-v3.0.5';
   const SPLASH_MIN   = 2400;
   const NET_TIMEOUT  = 5000;
   const VER_TIMEOUT  = 6000;
