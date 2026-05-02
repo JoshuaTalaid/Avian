@@ -284,11 +284,15 @@
     window.dispatchEvent(new CustomEvent('avian:ready'));
   }
 
-  /* Remove the inline visibility:hidden guard added by index.html <style> */
+  /* Override the visibility:hidden !important guard set by index.html <style>.
+     removeProperty() cannot beat !important — must use setProperty with
+     !important priority to win the specificity battle. */
   function revealAppShell() {
     const shell = document.getElementById('app-shell');
-    if (shell) shell.style.removeProperty('visibility');
-    document.querySelectorAll('.bg-orb').forEach(el => el.style.removeProperty('visibility'));
+    if (shell) shell.style.setProperty('visibility', 'visible', 'important');
+    document.querySelectorAll('.bg-orb').forEach(el =>
+      el.style.setProperty('visibility', 'visible', 'important')
+    );
   }
 
   /* ════════════════════════════════════════
