@@ -1,0 +1,57 @@
+{
+  "name": "Bird Identifier (Avian)",
+  "short_name": "Avian",
+  "description": "Identify bird species instantly using AI — works offline after first load.",
+  "start_url": "/Avian/",
+  "scope": "/Avian/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0b0f14",
+  "background_color": "#0b0f14",
+  "lang": "en",
+  "categories": ["education", "utilities", "lifestyle"],
+  "icons": [
+    {
+      "src": "/Avian/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/Avian/icons/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/Avian/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/Avian/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/Avian/icons/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Avian Bird Identifier home screen"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open Camera",
+      "short_name": "Camera",
+      "description": "Directly open camera to identify a bird",
+      "url": "/Avian/?action=camera",
+      "icons": [{ "src": "/Avian/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

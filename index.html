@@ -4,6 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Avian — Bird Identifier</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/Avian/manifest.json" />
+  <meta name="theme-color" content="#0b0f14" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Avian" />
+  <link rel="apple-touch-icon" href="/Avian/icons/icon-192.png" />
+  <meta name="description" content="Identify bird species instantly with AI — works offline." />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
@@ -152,9 +163,33 @@
 
     </main>
 
-    <footer class="app-footer">Powered by Joshua: Ing ana ko kaisog Mwehehehe</footer>
+    <footer class="app-footer">Powered by TensorFlow.js · Custom Bird Model</footer>
 
   </div><!-- /.app-shell -->
+
+  <!-- PWA: Install prompt banner -->
+  <div class="pwa-install-banner" id="installBanner" style="display:none">
+    <div class="pwa-banner-icon">&#x1F426;</div>
+    <div class="pwa-banner-text">
+      <strong>Install Avian</strong>
+      <span>Add to home screen &mdash; works offline</span>
+    </div>
+    <button class="pwa-banner-btn" id="installBtn">Install</button>
+    <button class="pwa-banner-close" id="installDismiss" aria-label="Dismiss">&#x2715;</button>
+  </div>
+
+  <!-- PWA: Offline ready toast -->
+  <div class="pwa-toast" id="offlineToast" style="display:none">
+    <span class="pwa-toast-icon">&#x2705;</span>
+    <span id="toastMsg">App ready for offline use</span>
+  </div>
+
+  <!-- PWA: Update available toast -->
+  <div class="pwa-toast pwa-toast-update" id="updateToast" style="display:none">
+    <span class="pwa-toast-icon">&#x1F504;</span>
+    <span>New version available</span>
+    <button class="pwa-toast-action" id="updateBtn">Update</button>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.16.0/dist/tf.min.js"></script>
   <script src="script.js"></script>

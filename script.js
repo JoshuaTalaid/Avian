@@ -328,3 +328,192 @@ resetBtn.addEventListener('click', () => {
 
 // ── Init ───────────────────────────────────────
 window.addEventListener('load', loadModel);
+
+/* ═══════════════════════════════════════════════
+   PWA — Service Worker, Install Prompt, Updates
+   Appended below existing inference logic
+═══════════════════════════════════════════════ */
+
+/* ── Service Worker registration ── */
+(function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register(
+        '/Avian/service-worker.js',
+        { scope: '/Avian/' }
+      );
+      console.log('[PWA] SW registered, scope:', reg.scope);
+
+      /* Listen for a new SW waiting to activate */
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            /* New content available — show update toast */
+            showUpdateToast(newSW);
+          } else if (newSW.state === 'installed' && !navigator.serviceWorker.controller) {
+            /* First install — app is now ready for offline */
+            showToast('offlineToast', 'App is ready for offline use', 4000);
+          }
+        });
+      });
+
+    } catch (err) {
+      console.error('[PWA] SW registration failed:', err);
+    }
+  });
+})();
+
+/* ── Version / update check ── */
+(function checkForUpdate() {
+  const VERSION_URL  = 'https://raw.githubusercontent.com/joshuatalaid/Avian/main/version.json';
+  const STORAGE_KEY  = 'avian_version';
+
+  async function checkVersion() {
+    try {
+      const res  = await fetch(VERSION_URL, { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const remote  = data.version;
+      const local   = localStorage.getItem(STORAGE_KEY);
+
+      if (!local) {
+        /* First visit — store version */
+        localStorage.setItem(STORAGE_KEY, remote);
+        return;
+      }
+
+      if (remote !== local) {
+        console.log(`[PWA] Update detected: ${local} → ${remote}`);
+        /* Store new version immediately */
+        localStorage.setItem(STORAGE_KEY, remote);
+        /* Clear all caches then reload */
+        triggerCacheUpdate();
+      }
+    } catch (err) {
+      /* Offline or network error — silent fail */
+      console.log('[PWA] Version check skipped (offline?)');
+    }
+  }
+
+  /* Run once on load, then every 30 min if tab stays open */
+  window.addEventListener('load', () => {
+    setTimeout(checkVersion, 3000); /* slight delay so model load takes priority */
+    setInterval(checkVersion, 30 * 60 * 1000);
+  });
+})();
+
+/* ── Trigger SW cache clear ── */
+function triggerCacheUpdate() {
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage('CLEAR_CACHE');
+  }
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data?.type === 'CACHE_CLEARED') {
+      window.location.reload();
+    }
+  }, { once: true });
+}
+
+/* ── Update toast ── */
+let pendingNewSW = null;
+
+function showUpdateToast(newSW) {
+  pendingNewSW = newSW;
+  const toast = document.getElementById('updateToast');
+  toast.style.display = 'flex';
+  requestAnimationFrame(() => toast.classList.add('show'));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const updateBtn = document.getElementById('updateBtn');
+  if (updateBtn) {
+    updateBtn.addEventListener('click', () => {
+      if (pendingNewSW) {
+        pendingNewSW.postMessage('SKIP_WAITING');
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
+        }, { once: true });
+      }
+    });
+  }
+});
+
+/* ── Toast helper ── */
+function showToast(id, message, duration = 3500) {
+  const toast = document.getElementById(id);
+  if (!toast) return;
+  const msgEl = toast.querySelector('#toastMsg');
+  if (msgEl && message) msgEl.textContent = message;
+  toast.style.display = 'flex';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => toast.classList.add('show'));
+  });
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => { toast.style.display = 'none'; }, 500);
+  }, duration);
+}
+
+/* ── Install prompt (A2HS) ── */
+(function handleInstallPrompt() {
+  let deferredPrompt = null;
+  const banner   = document.getElementById('installBanner');
+  const installBtn  = document.getElementById('installBtn');
+  const dismissBtn  = document.getElementById('installDismiss');
+
+  /* Chrome fires this when app is installable */
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+
+    /* Don't show if user dismissed in this session */
+    if (sessionStorage.getItem('avian_install_dismissed')) return;
+
+    /* Slight delay so it doesn't pop up immediately */
+    setTimeout(() => {
+      if (banner) banner.style.display = 'flex';
+    }, 2500);
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log('[PWA] Install prompt outcome:', outcome);
+      deferredPrompt = null;
+      banner.style.display = 'none';
+      if (outcome === 'accepted') {
+        showToast('offlineToast', 'Avian installed successfully! 🎉', 4000);
+      }
+    });
+  }
+
+  if (dismissBtn) {
+    dismissBtn.addEventListener('click', () => {
+      banner.style.display = 'none';
+      sessionStorage.setItem('avian_install_dismissed', '1');
+    });
+  }
+
+  /* Hide banner if app is already installed */
+  window.addEventListener('appinstalled', () => {
+    if (banner) banner.style.display = 'none';
+    deferredPrompt = null;
+    console.log('[PWA] App installed');
+  });
+
+  /* Handle ?action=camera shortcut from manifest */
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('action') === 'camera') {
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const camBtn = document.getElementById('cameraBtn');
+        if (camBtn && !camBtn.disabled) camBtn.click();
+      }, 1800); /* wait for model to start loading */
+    });
+  }
+})();
