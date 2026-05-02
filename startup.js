@@ -34,7 +34,7 @@
 
   /* Splash steps (id, progress 0-1, label) */
   const STEPS = [
-    { id:'init',   pct:0.05, label:'Initializing application\u2026'       },
+    { id:'init',   pct:0.05, label:'Initialising application\u2026'       },
     { id:'sw',     pct:0.12, label:'Setting up offline support\u2026'      },
     { id:'net',    pct:0.28, label:'Checking internet connection\u2026'    },
     { id:'ver',    pct:0.45, label:'Checking for updates\u2026'            },
@@ -58,6 +58,17 @@
     $offlinePill = document.getElementById('splash-offline');
     $dots        = document.getElementById('splash-step-dots');
     buildDots();
+
+    /* Hard failsafe — if startup ever gets stuck (JS error, bad network
+       state, animationend never fires) this will force-exit the splash
+       after 15 seconds so the user is never left on a frozen screen. */
+    setTimeout(() => {
+      if ($splash && $splash.style.display !== 'none') {
+        console.warn('[Startup] Failsafe triggered — forcing splash exit');
+        forceExitSplash();
+      }
+    }, 15000);
+
     run();
   }
 
@@ -242,17 +253,42 @@
     exitSplash();
   }
 
+  /* Lift the inline visibility:hidden guard and reveal the app shell,
+     then animate the splash out. Falls back to forceExitSplash if the
+     CSS exit animation never fires (e.g. reduced-motion or style.css
+     failed to load so .splash-out has no keyframes). */
   function exitSplash() {
-    if (!$splash) return;
-    /* Lift the inline visibility guard so the app shell renders beneath the exit animation */
-    const shell = document.getElementById('app-shell');
-    if (shell) shell.style.visibility = '';
-    document.querySelectorAll('.bg-orb').forEach(el => el.style.visibility = '');
+    if (!$splash) { forceExitSplash(); return; }
+
+    /* Reveal app shell before the splash starts fading */
+    revealAppShell();
+
     $splash.classList.add('splash-out');
+
+    /* Fallback: if animationend hasn't fired within 800ms, force-remove */
+    const fallback = setTimeout(() => {
+      console.warn('[Startup] animationend did not fire — forcing exit');
+      forceExitSplash();
+    }, 800);
+
     $splash.addEventListener('animationend', () => {
-      $splash.style.display = 'none';
-      window.dispatchEvent(new CustomEvent('avian:ready'));
-    }, { once:true });
+      clearTimeout(fallback);
+      forceExitSplash();
+    }, { once: true });
+  }
+
+  /* Hard removal — no animation dependency */
+  function forceExitSplash() {
+    revealAppShell();
+    if ($splash) $splash.style.display = 'none';
+    window.dispatchEvent(new CustomEvent('avian:ready'));
+  }
+
+  /* Remove the inline visibility:hidden guard added by index.html <style> */
+  function revealAppShell() {
+    const shell = document.getElementById('app-shell');
+    if (shell) shell.style.removeProperty('visibility');
+    document.querySelectorAll('.bg-orb').forEach(el => el.style.removeProperty('visibility'));
   }
 
   /* ════════════════════════════════════════

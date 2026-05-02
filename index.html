@@ -18,19 +18,38 @@
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- App styles -->
   <link rel="stylesheet" href="style.css" />
 
-  <!--
-    CRITICAL INLINE GUARD — 3 rules only.
-    style.css may not be parsed before first paint in standalone PWA mode.
-    These rules are the bare minimum to prevent the app shell flashing
-    through before the splash renders. All other styles live in style.css.
-  -->
+  <!-- ═══════════════════════════════════════════════════════════
+       CRITICAL INLINE STYLES — must stay here in <head>.
+       style.css is fetched async and is NOT guaranteed to apply
+       before first paint in standalone PWA mode on Android/iOS.
+       These rules guarantee the splash is visible and centred and
+       the app shell is hidden from frame 0. !important is used
+       intentionally to win over any delayed stylesheet rules.
+  ════════════════════════════════════════════════════════════ -->
   <style>
-    #avian-splash { position:fixed; inset:0; z-index:9999; background:#0b0f14;
-                    display:flex; flex-direction:column; align-items:center; justify-content:center; }
-    #app-shell, .bg-orb { visibility:hidden; }
-    body { background:#0b0f14; }
+    html, body { background: #0b0f14; margin: 0; padding: 0;
+                 box-sizing: border-box; }
+
+    /* Splash: full-screen, centred, dark — visible before anything else */
+    #avian-splash {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 9999 !important;
+      background: #0b0f14 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 24px 32px 40px !important;
+      overflow: hidden !important;
+    }
+
+    /* App shell is invisible until startup.js lifts this after exit */
+    #app-shell, .bg-orb { visibility: hidden !important; }
   </style>
 </head>
 <body>
@@ -61,9 +80,7 @@
   <div class="splash-center">
 
     <div class="splash-logo-wrap">
-      <!-- Outer ambient glow -->
       <div class="splash-aura"></div>
-      <!-- Rotating arc spinner -->
       <svg class="splash-arc" viewBox="0 0 80 80" fill="none">
         <circle class="arc-track" cx="40" cy="40" r="36" stroke-width="2.5"/>
         <circle class="arc-head"  cx="40" cy="40" r="36" stroke-width="2.5"
@@ -71,7 +88,6 @@
                 stroke-dasharray="56 170"
                 stroke-dashoffset="0"/>
       </svg>
-      <!-- Bird icon -->
       <div class="splash-bird-icon">
         <svg width="48" height="48" viewBox="0 0 100 100" fill="none">
           <ellipse cx="50" cy="63" rx="29" ry="20" fill="rgba(74,222,128,0.07)"/>
@@ -85,7 +101,6 @@
       </div>
     </div>
 
-    <!-- App name -->
     <h1 class="splash-title">Avian</h1>
     <p class="splash-tagline">Bird Identifier</p>
 
@@ -261,7 +276,7 @@
   <button class="pwa-toast-action" id="updateBtn">Update</button>
 </div>
 
-<!-- startup.js: synchronous, runs immediately -->
+<!-- startup.js: synchronous, runs after DOM is painted -->
 <script src="startup.js"></script>
 <!-- Main app: deferred until after splash -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.16.0/dist/tf.min.js" defer></script>
