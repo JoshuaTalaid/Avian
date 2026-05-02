@@ -14,6 +14,7 @@ const PRECACHE_URLS = [
   `${BASE}/index.html`,
   `${BASE}/style.css`,
   `${BASE}/script.js`,
+  `${BASE}/startup.js`,
   `${BASE}/manifest.json`,
   `${BASE}/version.json`,
 

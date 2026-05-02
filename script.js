@@ -1,7 +1,8 @@
 /* ═══════════════════════════════════════════════
-   AVIAN — Bird Identifier · script.js
-   Drop-in replacement — works with your
-   model/model.json + model/metadata.json
+   AVIAN — script.js
+   Main application logic.
+   Triggered by the 'avian:ready' event from startup.js
+   (NOT window.load — splash must finish first).
 ═══════════════════════════════════════════════ */
 
 // ── State ──────────────────────────────────────
@@ -44,8 +45,6 @@ const resetRow      = document.getElementById('resetRow');
 const resetBtn      = document.getElementById('resetBtn');
 
 // ── Bird knowledge base ────────────────────────
-// Matches your existing birdInfo keys exactly,
-// extended with emoji + tags for the new card UI.
 const birdData = {
   "Chicken Chicks": {
     emoji: '🐥',
@@ -78,7 +77,7 @@ const birdData = {
     tags:  ['Columbidae', 'Urban', 'Navigator']
   },
   "Crow": {
-    emoji: '🐦‍⬛',
+    emoji: '🐦',
     desc:  "A highly intelligent black bird known for problem-solving and loud cawing.",
     tags:  ['Corvidae', 'Intelligent', 'Adaptable']
   },
@@ -89,14 +88,13 @@ const birdData = {
   }
 };
 
-// Fallback for labels not in our database
 const defaultBirdData = {
   emoji: '🦅',
   desc:  'A fascinating bird species identified by the AI model. Birds are warm-blooded vertebrates defined by their feathers, beaks, and adaptations for flight.',
   tags:  ['Aves', 'Vertebrate', 'Warm-blooded']
 };
 
-// ── Load model ─────────────────────────────────
+// ── Load TF model ──────────────────────────────
 async function loadModel() {
   try {
     setStatus('loading', 'Loading model…');
@@ -114,7 +112,9 @@ async function loadModel() {
   } catch (err) {
     console.error('Model load error:', err);
     setStatus('error', 'Load Failed');
-    loadingVeil.querySelector('p').textContent = 'Failed to load model — refresh to retry.';
+    if (loadingVeil) {
+      loadingVeil.querySelector('p').textContent = 'Failed to load model — refresh to retry.';
+    }
   }
 }
 
@@ -129,7 +129,7 @@ function enableControls() {
   imageUpload.disabled   = false;
 }
 
-// ── Ripple helper ──────────────────────────────
+// ── Ripple ─────────────────────────────────────
 function spawnRipple(e, btn) {
   const rect = btn.getBoundingClientRect();
   const x = (e.clientX ?? rect.left + rect.width  / 2) - rect.left;
@@ -137,7 +137,7 @@ function spawnRipple(e, btn) {
   const r = Math.max(rect.width, rect.height);
   const rip = document.createElement('span');
   rip.className = 'ripple';
-  rip.style.cssText = `width:${r}px;height:${r}px;left:${x - r/2}px;top:${y - r/2}px`;
+  rip.style.cssText = `width:${r}px;height:${r}px;left:${x-r/2}px;top:${y-r/2}px`;
   btn.appendChild(rip);
   rip.addEventListener('animationend', () => rip.remove(), { once: true });
 }
@@ -160,23 +160,22 @@ imageUpload.addEventListener('change', e => {
 });
 
 function showImage(src) {
-  idleState.style.display  = 'none';
-  video.style.display      = 'none';
-  imgEl.src                = src;
-  imgEl.style.display      = 'block';
+  idleState.style.display = 'none';
+  video.style.display     = 'none';
+  imgEl.src               = src;
+  imgEl.style.display     = 'block';
   previewZone.classList.add('has-content');
 }
 
 // ── Camera ─────────────────────────────────────
 cameraBtnEl.addEventListener('click', async () => {
   if (cameraOpen) { closeCamera(); return; }
-
   try {
     cameraStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1280 } },
       audio: false
     });
-    video.srcObject  = cameraStream;
+    video.srcObject     = cameraStream;
     video.style.display = 'block';
     imgEl.style.display = 'none';
     idleState.style.display = 'none';
@@ -228,7 +227,6 @@ function closeCamera() {
 async function predict(source) {
   if (!isModelReady) return;
 
-  // Show scanning animation
   scanLine.classList.add('active');
   setStatus('loading', 'Identifying…');
 
@@ -249,51 +247,33 @@ async function predict(source) {
     setStatus('ready', 'Model Ready');
   }
 
-  // Find top result
   let maxVal = 0, maxIdx = 0;
   predValues.forEach((v, i) => { if (v > maxVal) { maxVal = v; maxIdx = i; } });
 
-  const label      = labels[maxIdx] ?? 'Unknown Bird';
-  const confidence = maxVal * 100;
-
-  showResult(label, confidence);
+  showResult(labels[maxIdx] ?? 'Unknown Bird', maxVal * 100);
 }
 
 // ── Show result ────────────────────────────────
 function showResult(label, confidence) {
-  // Result panel
   resultText.textContent = label;
   confLabel.textContent  = confidence.toFixed(1) + '%';
   resultPanel.classList.add('visible');
 
-  // Animate confidence bar after a tick (allows CSS transition)
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      confFill.style.width = Math.min(confidence, 100) + '%';
-    });
-  });
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    confFill.style.width = Math.min(confidence, 100) + '%';
+  }));
 
-  // Bird info card
   const data = birdData[label] ?? defaultBirdData;
   birdCardIcon.textContent  = data.emoji;
   birdCardTitle.textContent = label;
   birdCardDesc.textContent  = data.desc;
+  birdTagsEl.innerHTML = data.tags.map(t => `<span class="tag">${t}</span>`).join('');
 
-  // Tags
-  birdTagsEl.innerHTML = data.tags
-    .map(t => `<span class="tag">${t}</span>`)
-    .join('');
-
-  // Animate card in
   birdCard.style.display = 'block';
-  // Force reflow before adding visible class
   void birdCard.offsetHeight;
   birdCard.classList.add('visible');
-
-  // Reset button
   resetRow.classList.add('visible');
 
-  // Smooth scroll to result
   setTimeout(() => {
     resultPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, 200);
@@ -305,12 +285,8 @@ function hideResults() {
   birdCard.classList.remove('visible');
   resetRow.classList.remove('visible');
   confFill.style.width = '0%';
-
-  // Wait for fade-out then hide card DOM
   setTimeout(() => {
-    if (!birdCard.classList.contains('visible')) {
-      birdCard.style.display = 'none';
-    }
+    if (!birdCard.classList.contains('visible')) birdCard.style.display = 'none';
   }, 600);
 }
 
@@ -326,156 +302,95 @@ resetBtn.addEventListener('click', () => {
   confFill.style.width    = '0%';
 });
 
-// ── Init ───────────────────────────────────────
-window.addEventListener('load', loadModel);
 
 /* ═══════════════════════════════════════════════
-   PWA — Service Worker, Install Prompt, Updates
-   Appended below existing inference logic
+   INIT — triggered by startup.js via 'avian:ready'
+   NOT window.load — ensures splash has finished
 ═══════════════════════════════════════════════ */
+function appInit() {
+  loadModel();
+  setupPWA();
 
-/* ── Service Worker registration ── */
-(function registerSW() {
-  if (!('serviceWorker' in navigator)) return;
+  /* Handle ?action=camera shortcut */
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('action') === 'camera') {
+    /* Wait until model is ready then open camera */
+    const poll = setInterval(() => {
+      if (isModelReady) {
+        clearInterval(poll);
+        cameraBtnEl.click();
+      }
+    }, 300);
+    setTimeout(() => clearInterval(poll), 15000);
+  }
+}
 
-  window.addEventListener('load', async () => {
-    try {
-      const reg = await navigator.serviceWorker.register(
-        '/Avian/service-worker.js',
-        { scope: '/Avian/' }
-      );
-      console.log('[PWA] SW registered, scope:', reg.scope);
+/* Listen for startup.js signal */
+window.addEventListener('avian:ready', appInit, { once: true });
 
-      /* Listen for a new SW waiting to activate */
+/* Fallback: if startup.js is missing or errored, boot on window.load */
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (!isModelReady && !model) {
+      console.warn('[App] avian:ready never fired — booting directly');
+      appInit();
+    }
+  }, 500);
+});
+
+
+/* ═══════════════════════════════════════════════
+   PWA — Install prompt, toasts, update UI
+═══════════════════════════════════════════════ */
+function setupPWA() {
+
+  /* ── Update toast (from SW) ── */
+  let pendingNewSW = null;
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(reg => {
       reg.addEventListener('updatefound', () => {
-        const newSW = reg.installing;
-        newSW.addEventListener('statechange', () => {
-          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-            /* New content available — show update toast */
-            showUpdateToast(newSW);
-          } else if (newSW.state === 'installed' && !navigator.serviceWorker.controller) {
-            /* First install — app is now ready for offline */
+        const sw = reg.installing;
+        sw.addEventListener('statechange', () => {
+          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+            pendingNewSW = sw;
+            showUpdateToast(sw);
+          } else if (sw.state === 'installed' && !navigator.serviceWorker.controller) {
             showToast('offlineToast', 'App is ready for offline use', 4000);
           }
         });
       });
+    });
 
-    } catch (err) {
-      console.error('[PWA] SW registration failed:', err);
-    }
-  });
-})();
-
-/* ── Version / update check ── */
-(function checkForUpdate() {
-  const VERSION_URL  = 'https://raw.githubusercontent.com/joshuatalaid/Avian/main/version.json';
-  const STORAGE_KEY  = 'avian_version';
-
-  async function checkVersion() {
-    try {
-      const res  = await fetch(VERSION_URL, { cache: 'no-store' });
-      if (!res.ok) return;
-      const data = await res.json();
-      const remote  = data.version;
-      const local   = localStorage.getItem(STORAGE_KEY);
-
-      if (!local) {
-        /* First visit — store version */
-        localStorage.setItem(STORAGE_KEY, remote);
-        return;
-      }
-
-      if (remote !== local) {
-        console.log(`[PWA] Update detected: ${local} → ${remote}`);
-        /* Store new version immediately */
-        localStorage.setItem(STORAGE_KEY, remote);
-        /* Clear all caches then reload */
-        triggerCacheUpdate();
-      }
-    } catch (err) {
-      /* Offline or network error — silent fail */
-      console.log('[PWA] Version check skipped (offline?)');
+    /* Pick up SW that was found during startup.js */
+    if (window.__swWaiting) {
+      pendingNewSW = window.__swWaiting;
+      showUpdateToast(pendingNewSW);
     }
   }
 
-  /* Run once on load, then every 30 min if tab stays open */
-  window.addEventListener('load', () => {
-    setTimeout(checkVersion, 3000); /* slight delay so model load takes priority */
-    setInterval(checkVersion, 30 * 60 * 1000);
-  });
-})();
-
-/* ── Trigger SW cache clear ── */
-function triggerCacheUpdate() {
-  if (navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage('CLEAR_CACHE');
-  }
-  navigator.serviceWorker.addEventListener('message', e => {
-    if (e.data?.type === 'CACHE_CLEARED') {
-      window.location.reload();
-    }
-  }, { once: true });
-}
-
-/* ── Update toast ── */
-let pendingNewSW = null;
-
-function showUpdateToast(newSW) {
-  pendingNewSW = newSW;
-  const toast = document.getElementById('updateToast');
-  toast.style.display = 'flex';
-  requestAnimationFrame(() => toast.classList.add('show'));
-}
-
-document.addEventListener('DOMContentLoaded', () => {
   const updateBtn = document.getElementById('updateBtn');
   if (updateBtn) {
     updateBtn.addEventListener('click', () => {
       if (pendingNewSW) {
         pendingNewSW.postMessage('SKIP_WAITING');
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          window.location.reload();
-        }, { once: true });
+        navigator.serviceWorker.addEventListener('controllerchange',
+          () => window.location.reload(), { once: true });
       }
     });
   }
-});
 
-/* ── Toast helper ── */
-function showToast(id, message, duration = 3500) {
-  const toast = document.getElementById(id);
-  if (!toast) return;
-  const msgEl = toast.querySelector('#toastMsg');
-  if (msgEl && message) msgEl.textContent = message;
-  toast.style.display = 'flex';
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => toast.classList.add('show'));
-  });
-  setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => { toast.style.display = 'none'; }, 500);
-  }, duration);
-}
-
-/* ── Install prompt (A2HS) ── */
-(function handleInstallPrompt() {
+  /* ── Install banner (A2HS) ── */
   let deferredPrompt = null;
-  const banner   = document.getElementById('installBanner');
-  const installBtn  = document.getElementById('installBtn');
-  const dismissBtn  = document.getElementById('installDismiss');
+  const banner     = document.getElementById('installBanner');
+  const installBtn = document.getElementById('installBtn');
+  const dismissBtn = document.getElementById('installDismiss');
 
-  /* Chrome fires this when app is installable */
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     deferredPrompt = e;
-
-    /* Don't show if user dismissed in this session */
     if (sessionStorage.getItem('avian_install_dismissed')) return;
-
-    /* Slight delay so it doesn't pop up immediately */
-    setTimeout(() => {
-      if (banner) banner.style.display = 'flex';
-    }, 2500);
+    setTimeout(() => { if (banner) banner.style.display = 'flex'; }, 3000);
   });
 
   if (installBtn) {
@@ -483,12 +398,9 @@ function showToast(id, message, duration = 3500) {
       if (!deferredPrompt) return;
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      console.log('[PWA] Install prompt outcome:', outcome);
       deferredPrompt = null;
       banner.style.display = 'none';
-      if (outcome === 'accepted') {
-        showToast('offlineToast', 'Avian installed successfully! 🎉', 4000);
-      }
+      if (outcome === 'accepted') showToast('offlineToast', 'Avian installed! 🎉', 4000);
     });
   }
 
@@ -499,21 +411,29 @@ function showToast(id, message, duration = 3500) {
     });
   }
 
-  /* Hide banner if app is already installed */
   window.addEventListener('appinstalled', () => {
     if (banner) banner.style.display = 'none';
     deferredPrompt = null;
-    console.log('[PWA] App installed');
   });
+}
 
-  /* Handle ?action=camera shortcut from manifest */
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('action') === 'camera') {
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        const camBtn = document.getElementById('cameraBtn');
-        if (camBtn && !camBtn.disabled) camBtn.click();
-      }, 1800); /* wait for model to start loading */
-    });
-  }
-})();
+/* ── Toast helpers ── */
+function showUpdateToast(sw) {
+  const toast = document.getElementById('updateToast');
+  if (!toast) return;
+  toast.style.display = 'flex';
+  requestAnimationFrame(() => toast.classList.add('show'));
+}
+
+function showToast(id, message, duration = 3500) {
+  const toast = document.getElementById(id);
+  if (!toast) return;
+  const msgEl = toast.querySelector('#toastMsg');
+  if (msgEl && message) msgEl.textContent = message;
+  toast.style.display = 'flex';
+  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => { toast.style.display = 'none'; }, 500);
+  }, duration);
+}
