@@ -356,7 +356,7 @@ function appInit() {
      AND acts as a last-resort fallback if startup.js never completes.
      Poll every 200 ms; give up and force-boot after 30 s (covers slow downloads). */
   const POLL_INTERVAL = 200;
-  const POLL_LIMIT    = 30000;
+  const POLL_LIMIT    = 40000;
   let   elapsed       = 0;
 
   const poll = setInterval(() => {
@@ -416,28 +416,57 @@ function setupPWA() {
   const installBtn = document.getElementById('installBtn');
   const dismissBtn = document.getElementById('installDismiss');
 
+  function isRunningAsInstalled() {
+    return window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+  }
+
+  function showInstallBanner() {
+    if (isRunningAsInstalled()) return; /* already installed, never show */
+    if (banner) banner.style.display = 'flex';
+  }
+
+  /* Capture the prompt whenever the browser offers it */
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     deferredPrompt = e;
-    if (sessionStorage.getItem('avian_install_dismissed')) return;
-    setTimeout(() => { if (banner) banner.style.display = 'flex'; }, 3000);
+    if (installBtn) installBtn.textContent = 'Install';
+    showInstallBanner();
   });
+
+  /* Always show after a short delay — even without a native prompt,
+     so the user always has a way to install on any browser/OS */
+  setTimeout(showInstallBanner, 2500);
 
   if (installBtn) {
     installBtn.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      deferredPrompt = null;
-      banner.style.display = 'none';
-      if (outcome === 'accepted') showToast('offlineToast', 'Avian installed! 🎉', 4000);
+      if (deferredPrompt) {
+        /* Native prompt available — trigger it */
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        if (outcome === 'accepted') {
+          if (banner) banner.style.display = 'none';
+          showToast('offlineToast', 'Avian installed! 🎉', 4000);
+        }
+      } else {
+        /* No native prompt — show manual instructions per browser/OS */
+        const isIOS     = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        const isFirefox = /firefox/i.test(navigator.userAgent);
+        if (isIOS) {
+          alert('To install Avian on iOS:\nTap the Share button (□↑) in Safari, then tap "Add to Home Screen".');
+        } else if (isFirefox) {
+          alert('To install Avian:\nTap the home icon in the address bar, or open the browser menu and select "Install".');
+        } else {
+          alert('To install Avian:\nTap the menu (⋮) in your browser, then select "Add to Home Screen" or "Install app".');
+        }
+      }
     });
   }
 
   if (dismissBtn) {
     dismissBtn.addEventListener('click', () => {
-      banner.style.display = 'none';
-      sessionStorage.setItem('avian_install_dismissed', '1');
+      if (banner) banner.style.display = 'none';
     });
   }
 
