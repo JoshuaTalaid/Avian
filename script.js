@@ -325,29 +325,48 @@ function appInit() {
   }
 }
 
-/* ── Init guard — prevents appInit() running twice ── */
-let _appInitDone = false;
-function _safeAppInit(source) {
-  if (_appInitDone) return;
-  _appInitDone = true;
-  if (source) console.log('[App] Boot triggered by:', source);
-  appInit();
-}
+/* ═══════════════════════════════════════════════
+   BOOT — wait for startup.js to finish the splash,
+   then initialise the app exactly once.
 
-/* Primary path: startup.js signals when splash is fully done */
-window.addEventListener('avian:ready', () => _safeAppInit('avian:ready'), { once: true });
+   Three scenarios handled:
+   1. Normal: avian:ready fires after script.js loads  → event listener wins
+   2. Fast:   avian:ready fired before script.js loaded → window.__avianReady
+              flag is already set, poll catches it immediately
+   3. Broken: startup.js errored and never set the flag → poll times out
+              after POLL_LIMIT ms and boots anyway (true last-resort fallback)
+═══════════════════════════════════════════════ */
+;(function bootWhenReady() {
+  let booted = false;
 
-/* Fallback: startup.js took too long or errored.
-   SPLASH_MIN in startup.js is 2400 ms, so wait well beyond that.
-   This only fires if avian:ready genuinely never arrives. */
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    if (!_appInitDone) {
+  function boot(source) {
+    if (booted) return;
+    booted = true;
+    if (source !== 'avian:ready') {
       console.warn('[App] avian:ready never fired — booting directly');
-      _safeAppInit('load-fallback');
     }
-  }, 5000); // longer than SPLASH_MIN (2400ms) + startup overhead
-});
+    appInit();
+  }
+
+  /* Path 1 — event fires after this script has loaded (normal case) */
+  window.addEventListener('avian:ready', () => boot('avian:ready'), { once: true });
+
+  /* Path 2 & 3 — poll the flag startup.js sets before dispatching the event.
+     Catches the case where the event fired before our listener was registered,
+     AND acts as a last-resort fallback if startup.js never completes.
+     Poll every 200 ms; give up and force-boot after 30 s (covers slow downloads). */
+  const POLL_INTERVAL = 200;
+  const POLL_LIMIT    = 30000;
+  let   elapsed       = 0;
+
+  const poll = setInterval(() => {
+    elapsed += POLL_INTERVAL;
+    if (window.__avianReady || elapsed >= POLL_LIMIT) {
+      clearInterval(poll);
+      boot(window.__avianReady ? 'flag-poll' : 'poll-timeout');
+    }
+  }, POLL_INTERVAL);
+})();
 
 
 /* ═══════════════════════════════════════════════

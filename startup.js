@@ -281,7 +281,10 @@
   function forceExitSplash() {
     revealAppShell();
     if ($splash) $splash.style.display = 'none';
-    window.__avianReady = true;                          
+    /* Set a persistent flag BEFORE dispatching the event.
+       script.js (deferred) may not have registered its listener yet —
+       the flag lets it catch up via polling without relying on event timing. */
+    window.__avianReady = true;
     window.dispatchEvent(new CustomEvent('avian:ready'));
   }
 
