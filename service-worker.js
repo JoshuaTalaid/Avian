@@ -5,7 +5,7 @@
    Scope     : /Avian/
 ═══════════════════════════════════════════════════════════ */
 
-const CACHE_NAME    = 'avian-cache-v3.0.5';
+const CACHE_NAME    = 'avian-cache-v3.1.1';
 const BASE          = '/Avian';
 
 /* ── Assets to pre-cache on install ── */
